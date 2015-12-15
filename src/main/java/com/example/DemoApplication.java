@@ -1,42 +1,16 @@
 package com.example;
 
-import org.springframework.boot.SpringApplication;
-import org.springframework.boot.autoconfigure.SpringBootApplication;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import javax.ws.rs.ApplicationPath;
+import javax.ws.rs.core.Application;
 
-@SpringBootApplication
-@RestController
-public class DemoApplication {
+/**
+ * @author Heiko Braun
+ * @since 15/12/15
+ */
+@ApplicationPath("/")
+public class DemoApplication extends Application {
 
-	@RequestMapping("/greeting")
-	public Greeting greeting() {
-		return new Greeting("Hello World!");
+	public DemoApplication() {
 	}
-
-	public static void main(String[] args) {
-		SpringApplication.run(DemoApplication.class, args);
-	}
-
 }
 
-class Greeting {
-	private String message;
-
-	Greeting() {
-	}
-
-	public Greeting(String message) {
-		super();
-		this.message = message;
-	}
-
-	public String getMessage() {
-		return this.message;
-	}
-
-	public void setMessage(String message) {
-		this.message = message;
-	}
-
-}

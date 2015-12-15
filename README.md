@@ -1,11 +1,10 @@
-It has sometimes been suggested that Spring and Spring Boot are "heavyweight", perhaps just because they allow apps to punch above their weight, providing a lot of features for not very much user code. In this article we concentrate on memory usage and ask if we can quantify the effect of using Spring? Specifically we would like to know more about the real overhead of using Spring compared to other JVM applications. We start by creating a basic application with Spring Boot, and look at a few different ways to measure it when it is running. Then we look at some comparison points: plain Java apps, apps that use Spring but not Spring Boot, an app that uses Spring Boot but no autoconfiguration, and some Ratpack sample apps.
 
-## Vanilla Spring Boot App
+## Vanilla Swarm App
 
-As a baseline we build a static app with a few webjars and `spring.resources.enabled=true`. This is perfectly fine for serving nice-looking static content maybe with a REST endpoint or two. The source code for the app we used to test is [in github](https://github.com/dsyer/spring-boot-memory-blog/blob/master/demo). You can build it with the `mvnw` wrapper script if you have a JDK 1.8 available and on your path (`mvnw package`). It can be launched like this:
+As a baseline we build a static app with a few webjars and `spring.resources.enabled=true`. This is perfectly fine for serving nice-looking static content maybe with a REST endpoint or two. The source code for the app we used to test is [in github](https://github.com/dsyer/spring-boot-memory-blog/blob/master/demo). You can build it with the `mvn` wrapper script if you have a JDK 1.8 available and on your path (`mvn package`). It can be launched like this:
 
 ```
-$ java -Xmx32m -Xss256k -jar target/demo-0.0.1-SNAPSHOT.jar
+$ java -Xmx32m -Xss256k -jar target/swarm-demo-0.0.1-SNAPSHOT-swarm.jar
 ```
 
 The we add some load, just to warm up the thread pools and force all the code paths to be exercised:
@@ -14,34 +13,18 @@ The we add some load, just to warm up the thread pools and force all the code pa
 $ ab -n 2000 -c 4 http://localhost:8080/
 ```
 
-We can try and limit threads a bit in `application.properties`:
-
-```
-server.tomcat.max-threads: 4
-```
-
-but in the end it doesn't make a lot of difference to the numbers. We conclude from the analysis below that it would save at most a MB with the stack size we are using. All the Spring Boot webapps we analyse have this same configuration.
-
-We might have to worry about how big the classpath is, in order to estimate what happens to the memory. Despite some claims in the internet that the JVM memory maps all jars on the classpath, we actually don't find any evidence that the size of the classpath has any effect on the running app. For reference, the size of the dependency jars (not including JDK) in the vanilla sample is 18MB:
-
-```
-$ jar -tvf  target/demo-0.0.1-SNAPSHOT.jar | grep lib/.*.jar | awk '{tot+=$1;} END {print tot}'
-18893563
-```
-
-This includes Spring Boot Web and Actuator starters, plus 3 or 4 webjars for static resources and the webjar locator. A completely minimal Spring Boot application including Spring and some logging but no web server would be around 5MB of jars.
-
 ### JVM Tools
 
-To measure memory usage there are some tools in the JVM. You can get quite a lot of useful information from JConsole or JVisualVM (with the JConsole plugin so you can inspect MBeans).
+To measure memory usage there are some tools in the JVM.
+You can get quite a lot of useful information from JConsole or JVisualVM (with the JConsole plugin so you can inspect MBeans).
 
-Heap usage for our vanilla app is a saw tooth, bounded above by the heap size and below by the amount of memory used in a quiescent state. The average weighs in at roughly 25MB for an app under load (and 22MB after a manual GC). JConsole also reports 50MB non-heap usage (which is the same as you get from the `java.lang:type=Memory` MBean). The non-heap usage breaks down as Metaspace: 32MB, Compressed Class Space: 4MB, Code Cache: 13MB (you can get these numbers from the `java.lang:type=MemoryPool,name=*` MBeans). There are 6200 classes and 25 threads, including a few that are added by the monitoring tool that we use to measure them.
+The average weighs in at roughly 18MB-20MB for an app under load (and 15MB after a manual GC). JConsole also reports ~60MB non-heap usage.
 
 Here's a graph of the heap usage from a quiescent app under load,
 followed by a manual garbage collection (the double nick in the
 middle) and a new equilibrium with a lower heap usage.
 
-<img src="https://raw.githubusercontent.com/dsyer/spring-boot-memory-blog/master/manual-gc-web.png" width="80%"/>
+<img src="https://raw.githubusercontent.com/heiko-braun/swarm-boot-memory/master/manual-gc-web.png" width="80%"/>
 
 Some tools in the JVM other than JConsole might also be
 interesting. The first is `jps` which is useful for getting the
@@ -50,7 +33,7 @@ process id of the app you want to inspect with the other tools:
 ```
 $ jps
 4289 Jps
-4330 demo-0.0.1-SNAPSHOT.jar
+4330 swarm-demo-0.0.1-SNAPSHOT-swarm.jar
 ```
 
 Then we have the `jmap` histogram:
@@ -109,7 +92,7 @@ First up is the good old `ps` (the tool you use to look at processes on the comm
 ```
 $ ps -au
 USER       PID %CPU %MEM    VSZ   RSS TTY      STAT START   TIME COMMAND
-dsyer     4330  2.4  2.1 2829092 169948 pts/5  Sl   18:03   0:37 java -Xmx32m -Xss256k -jar target/demo-0.0.1-SNAPSHOT.jar
+dsyer     4330  2.4  2.1 2829092 169948 pts/5  Sl   18:03   0:37 java -Xmx32m -Xss256k -jar target/swarm-demo-0.0.1-SNAPSHOT-swarm.jar
 ...
 ```
 
@@ -141,7 +124,7 @@ Someone commented that the RSS values were accurate on his machine, which is int
 A good test of how much memory is actually being used by a process is to keep launching more of them until the operating system starts to crumple. For example, to launch 40 identical vanilla processes:
 
 ```
-$ for f in {8080..8119}; do (java -Xmx32m -Xss256k -jar target/demo-0.0.1-SNAPSHOT.jar --server.port=$f 2>&1 > target/$f.log &); done
+$ for f in {8080..8119}; do (java -Xmx32m -Xss256k -jar target/swarm-demo-0.0.1-SNAPSHOT-swarm.jar --server.port=$f 2>&1 > target/$f.log &); done
 ```
 
 They are all competing for memory resources so it takes them all a while to start, which is fair enough. Once they all start they serve their home pages quite efficiently (51ms latency over a crappy LAN at 99th percentile). Once they are up and running, stopping and starting one of the processes is relatively quick (a few seconds not a few minutes).
@@ -151,8 +134,8 @@ The VSZ numbers from `ps` are off the scale (as expected). The RSS numbers look 
 ```
 $ ps -au
 USER       PID %CPU %MEM    VSZ   RSS TTY      STAT START   TIME COMMAND
-dsyer    27429  2.4  2.1 2829092 169948 pts/5  Sl   18:03   0:37 java -Xmx32m -Xss256k -jar target/demo-0.0.1-SNAPSHOT.jar --server.port=8081
-dsyer    27431  3.0  2.2 2829092 180956 pts/5  Sl   18:03   0:45 java -Xmx32m -Xss256k -jar target/demo-0.0.1-SNAPSHOT.jar --server.port=8082
+dsyer    27429  2.4  2.1 2829092 169948 pts/5  Sl   18:03   0:37 java -Xmx32m -Xss256k -jar target/swarm-demo-0.0.1-SNAPSHOT-swarm.jar --server.port=8081
+dsyer    27431  3.0  2.2 2829092 180956 pts/5  Sl   18:03   0:45 java -Xmx32m -Xss256k -jar target/swarm-demo-0.0.1-SNAPSHOT-swarm.jar --server.port=8082
 ...
 ```
 
