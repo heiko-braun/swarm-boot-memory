@@ -31,57 +31,28 @@ interesting. The first is `jps` which is useful for getting the
 process id of the app you want to inspect with the other tools:
 
 ```
-$ jps
-4289 Jps
-4330 swarm-demo-0.0.1-SNAPSHOT-swarm.jar
+$ jps 
+3162 Jps
+2767 swarm-demo-0.0.1-SNAPSHOT-swarm.jar
 ```
 
 Then we have the `jmap` histogram:
 
 ```
-$ jmap -histo 4330 | head
+$ jmap -histo 2767 | head
 
  num     #instances         #bytes  class name
 ----------------------------------------------
-   1:          5241        6885088  [B
-   2:         21233        1458200  [C
-   3:          2548        1038112  [I
-   4:         20970         503280  java.lang.String
-   5:          6023         459832  [Ljava.lang.Object;
-   6:         13167         421344  java.util.HashMap$Node
-   7:          3386         380320  java.lang.Class
-
+   1:         43475        4033168  [C
+   2:         31503        1369440  [Ljava.lang.Object;
+   3:         34533        1105056  java.util.HashMap$Node
+   4:          3124        1053792  [B
+   5:         42814        1027536  java.lang.String
+   6:          8199         864808  java.lang.Class
+   7:         24318         583632  java.util.ArrayList
 ```
 
 This data is of limited use because you can't trace the "big" objects back to their owners. For that you need a more fully featured profiler, like YourKit. YourKit does the aggregation for you and presents a list (although the details of how it does that are rather unclear).
-
-Classloader statistics might also be revealing, and `jmap` has a way to inspect the classloaders in an app. It needs to run as root:
-
-```
-$ sudo ~/Programs/jdk1.8.0/bin/jmap -clstats 4330
-Attaching to process ID 4330, please wait...
-Debugger attached successfully.
-Server compiler detected.
-JVM version is 25.60-b23
-finding class loader instances ..done.
-computing per loader stat ..done.
-please wait.. computing liveness....................................liveness analysis may be inaccurate ...
-class_loader  classes  bytes  parent_loader  alive?  type
-
-<bootstrap>	2123	3609965	  null  	live	<internal>
-0x00000000f4b0d730	1	1476	0x00000000f495c890	dead	sun/reflect/DelegatingClassLoader@0x0000000100009df8
-0x00000000f5a26120	1	1483	0x00000000f495c890	dead	sun/reflect/DelegatingClassLoader@0x0000000100009df8
-0x00000000f52ba3a8	1	1472	  null  	dead	sun/reflect/DelegatingClassLoader@0x0000000100009df8
-0x00000000f5a30520	1	880	0x00000000f495c890	dead	sun/reflect/DelegatingClassLoader@0x0000000100009df8
-0x00000000f495c890	3972	6362902	0x00000000f495c8f0	dead	org/springframework/boot/loader/LaunchedURLClassLoader@0x0000000100060828
-0x00000000f5b639b0	1	1473	0x00000000f495c890	dead	sun/reflect/DelegatingClassLoader@0x0000000100009df8
-0x00000000f4b80a30	1	1473	0x00000000f495c890	dead	sun/reflect/DelegatingClassLoader@0x0000000100009df8
-...
-
-total = 93	6300	10405986	    N/A    	alive=1, dead=92	    N/A
-```
-
-There are loads of "dead" entries, but there is also a warning that the liveness information is not accurate. A manual GC doesn't get rid of them.
 
 ### Kernel Memory Tools
 
