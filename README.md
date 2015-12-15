@@ -1,7 +1,7 @@
 
-## Vanilla Swarm App
+## Swarm App
 
-As a baseline we build a static app with a few webjars and `spring.resources.enabled=true`. This is perfectly fine for serving nice-looking static content maybe with a REST endpoint or two. The source code for the app we used to test is [in github](https://github.com/dsyer/spring-boot-memory-blog/blob/master/demo). You can build it with the `mvn` wrapper script if you have a JDK 1.8 available and on your path (`mvn package`). It can be launched like this:
+As a baseline we build a static app . This is perfectly fine for serving nice-looking static content maybe with a REST endpoint or two. The source code for the app we used to test is [in github](https://github.com/heiko-braun/swarm-boot-memory/tree/master/src/main/java/com/example). You can build it with `mvn` if you have a JDK 1.8 available and on your path (`mvn package`). It can be launched like this:
 
 ```
 $ java -Xmx32m -Xss256k -jar target/swarm-demo-0.0.1-SNAPSHOT-swarm.jar
